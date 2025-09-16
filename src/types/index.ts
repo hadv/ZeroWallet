@@ -7,15 +7,20 @@ export interface WalletState {
   balance: string
   isLoading: boolean
   error: string | null
+  isMultiSig?: boolean
+  signers?: ValidatorInfo[]
+  signingPolicy?: SigningPolicy
 }
 
 // Authentication types
 export interface AuthState {
   isAuthenticated: boolean
   username: string | null
-  authMethod: 'passkey' | 'social' | null
+  authMethod: 'passkey' | 'social' | 'multi-sig' | null
   isLoading: boolean
   error: string | null
+  activeSigners?: ValidatorInfo[]
+  primarySigner?: ValidatorInfo
 }
 
 // Transaction types
@@ -51,6 +56,67 @@ export interface SmartAccount {
   owner: Address
   isDeployed: boolean
   nonce: number
+}
+
+// Multi-signature smart account types
+export interface MultiSigSmartAccount extends SmartAccount {
+  primarySigner: ValidatorInfo
+  additionalSigners: ValidatorInfo[]
+  signingPolicy: SigningPolicy
+  isMultiSig: boolean
+}
+
+export interface ValidatorInfo {
+  id: string
+  type: 'social' | 'passkey'
+  name: string
+  publicKey?: string
+  metadata: ValidatorMetadata
+  createdAt: number
+  lastUsed?: number
+  isActive: boolean
+}
+
+export interface ValidatorMetadata {
+  // For social signers
+  email?: string
+  provider?: 'google' | 'github' | 'twitter' | 'discord' | 'email'
+  publicAddress?: string
+  issuer?: string
+
+  // For passkey signers
+  authenticatorId?: string
+  credentialId?: string
+  passkeyName?: string
+
+  // Common metadata
+  deviceInfo?: string
+  userAgent?: string
+}
+
+export interface SigningPolicy {
+  requireMultiSig: boolean
+  threshold: number
+  highValueThreshold?: string // ETH amount requiring multi-sig
+  timeDelay?: number // Delay in seconds for high-value transactions
+  allowedOperations?: OperationType[]
+}
+
+export type OperationType = 'transfer' | 'contract_interaction' | 'nft_transfer' | 'token_approval' | 'all'
+
+// Multi-signature transaction types
+export interface MultiSigTransaction extends Transaction {
+  requiredSignatures: number
+  collectedSignatures: ValidatorSignature[]
+  isComplete: boolean
+  expiresAt?: number
+}
+
+export interface ValidatorSignature {
+  validatorId: string
+  signature: string
+  signedAt: number
+  signerType: 'social' | 'passkey'
 }
 
 // User operation types
@@ -104,9 +170,11 @@ export interface AppState {
   wallet: WalletState
   auth: AuthState
   transactions: Transaction[]
+  multiSigTransactions: MultiSigTransaction[]
   tokens: Token[]
   nfts: NFT[]
   notifications: Notification[]
+  validators: ValidatorInfo[]
 }
 
 // Component prop types
@@ -141,6 +209,72 @@ export interface WalletError {
   code: string
   message: string
   details?: any
+}
+
+// Multi-validator service types
+export interface MultiValidatorConfig {
+  primaryValidator: any
+  additionalValidators: any[]
+  threshold: number
+  policy: SigningPolicy
+}
+
+export interface AddSignerRequest {
+  type: 'passkey'
+  name: string
+  username?: string
+}
+
+export interface RemoveSignerRequest {
+  validatorId: string
+  confirmationMethod: 'passkey' | 'social'
+}
+
+export interface SignerManagementState {
+  isLoading: boolean
+  error: string | null
+  pendingOperations: PendingSignerOperation[]
+}
+
+export interface PendingSignerOperation {
+  id: string
+  type: 'add' | 'remove' | 'update_policy'
+  data: any
+  createdAt: number
+  expiresAt: number
+  requiredSignatures: number
+  collectedSignatures: ValidatorSignature[]
+}
+
+// UI Component types for multi-sig
+export interface SignerCardProps {
+  signer: ValidatorInfo
+  isPrimary?: boolean
+  onRemove?: (signerId: string) => void
+  onSetPrimary?: (signerId: string) => void
+}
+
+export interface AddSignerModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onAddSigner: (request: AddSignerRequest) => Promise<void>
+  existingSigners: ValidatorInfo[]
+}
+
+export interface MultiSigTransactionModalProps {
+  isOpen: boolean
+  onClose: () => void
+  transaction: MultiSigTransaction
+  onSign: (validatorId: string) => Promise<void>
+  availableSigners: ValidatorInfo[]
+}
+
+export interface SecuritySettingsProps {
+  signers: ValidatorInfo[]
+  policy: SigningPolicy
+  onUpdatePolicy: (policy: SigningPolicy) => Promise<void>
+  onAddSigner: (request: AddSignerRequest) => Promise<void>
+  onRemoveSigner: (request: RemoveSignerRequest) => Promise<void>
 }
 
 export default {}

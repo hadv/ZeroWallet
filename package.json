@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",
@@ -14,6 +17,7 @@
     "@zerodev/passkey-validator": "^5.5.5",
     "@zerodev/sdk": "^5.4.41",
     "@zerodev/social-validator": "^5.2.3",
+    "@zerodev/weighted-validator": "^5.4.6",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
     "magic-sdk": "^30.0.0",
@@ -24,13 +28,18 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@jest/globals": "^30.1.2",
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "jest": "^30.1.3",
+    "jest-environment-jsdom": "^30.1.2",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.2",
     "typescript": "^5"
   }
 }

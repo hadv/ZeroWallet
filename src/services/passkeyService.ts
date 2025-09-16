@@ -8,6 +8,18 @@ import { config } from '@/config'
 import { PasskeyCredential } from '@/types'
 import { STORAGE_KEYS } from '@/constants'
 
+export interface SignMessageParams {
+  message: string
+  credentialId: string
+}
+
+export interface VerifySignatureParams {
+  signature: string
+  message: string
+  credentialId: string
+  publicKey: string
+}
+
 export class PasskeyService {
   private passkeyServerUrl: string
 
@@ -144,7 +156,7 @@ export class PasskeyService {
   /**
    * Get a stored credential by username
    */
-  private getStoredCredential(username: string): PasskeyCredential | null {
+  private getStoredCredentialByUsername(username: string): PasskeyCredential | null {
     const credentials = this.getAllStoredCredentials()
     return credentials.find(cred => cred.username === username) || null
   }
@@ -251,6 +263,116 @@ export class PasskeyService {
     }
 
     return { isValid: true }
+  }
+
+  /**
+   * Sign a message using a passkey
+   */
+  async signMessage(params: SignMessageParams): Promise<string> {
+    try {
+      const { message, credentialId } = params
+
+      // Get the stored credential
+      const credential = this.getStoredCredential(credentialId)
+      if (!credential) {
+        throw new Error('Credential not found')
+      }
+
+      // Create WebAuthn key for signing
+      const webAuthnKey = await toWebAuthnKey({
+        passkeyName: credential.username,
+        passkeyServerUrl: this.passkeyServerUrl,
+        mode: WebAuthnMode.Login,
+      })
+
+      // Create challenge from message
+      const challenge = new TextEncoder().encode(message)
+
+      // Get assertion using WebAuthn
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          allowCredentials: [{
+            type: 'public-key',
+            id: new TextEncoder().encode(credentialId)
+          }],
+          userVerification: 'required'
+        }
+      }) as PublicKeyCredential
+
+      if (!assertion) {
+        throw new Error('Failed to get assertion')
+      }
+
+      // Extract signature from assertion
+      const response = assertion.response as AuthenticatorAssertionResponse
+      const signature = new Uint8Array(response.signature)
+
+      // Convert to base64 string
+      return btoa(String.fromCharCode(...signature))
+    } catch (error) {
+      console.error('Error signing message with passkey:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Verify a passkey signature
+   */
+  async verifySignature(params: VerifySignatureParams): Promise<boolean> {
+    try {
+      const { signature, message, credentialId, publicKey } = params
+
+      // Convert signature from base64
+      const signatureBytes = Uint8Array.from(atob(signature), c => c.charCodeAt(0))
+
+      // Create challenge from message
+      const challenge = new TextEncoder().encode(message)
+
+      // Import public key
+      const cryptoKey = await crypto.subtle.importKey(
+        'spki',
+        new TextEncoder().encode(publicKey),
+        {
+          name: 'ECDSA',
+          namedCurve: 'P-256'
+        },
+        false,
+        ['verify']
+      )
+
+      // Verify signature
+      const isValid = await crypto.subtle.verify(
+        {
+          name: 'ECDSA',
+          hash: 'SHA-256'
+        },
+        cryptoKey,
+        signatureBytes,
+        challenge
+      )
+
+      return isValid
+    } catch (error) {
+      console.error('Error verifying passkey signature:', error)
+      return false
+    }
+  }
+
+  /**
+   * Get stored credential by ID
+   */
+  private getStoredCredential(credentialId: string): PasskeyCredential | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PASSKEY_CREDENTIALS)
+      if (!stored) return null
+
+      const credentials: PasskeyCredential[] = JSON.parse(stored)
+      return credentials.find(cred => cred.id === credentialId) || null
+    } catch (error) {
+      console.error('Error getting stored credential:', error)
+      return null
+    }
   }
 }
 

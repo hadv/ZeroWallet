@@ -2,14 +2,17 @@
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
 import { Address, Hash } from 'viem'
-import { WalletState, Transaction, SmartAccount } from '@/types'
+import { WalletState, Transaction, SmartAccount, MultiSigTransaction, ValidatorInfo } from '@/types'
 import { walletService } from '@/services/walletService'
+import { multiValidatorService } from '@/services/multiValidatorService'
 import { WALLET_STATES, STORAGE_KEYS } from '@/constants'
 
 // Wallet context state
 interface WalletContextState extends WalletState {
   smartAccount: SmartAccount | null
   transactions: Transaction[]
+  multiSigTransactions: MultiSigTransaction[]
+  pendingMultiSigTxs: MultiSigTransaction[]
 }
 
 // Wallet actions
@@ -22,6 +25,8 @@ type WalletAction =
   | { type: 'SET_SMART_ACCOUNT'; payload: SmartAccount }
   | { type: 'ADD_TRANSACTION'; payload: Transaction }
   | { type: 'UPDATE_TRANSACTION'; payload: { hash: Hash; updates: Partial<Transaction> } }
+  | { type: 'ADD_MULTISIG_TRANSACTION'; payload: MultiSigTransaction }
+  | { type: 'UPDATE_MULTISIG_TRANSACTION'; payload: { hash: Hash; updates: Partial<MultiSigTransaction> } }
   | { type: 'CLEAR_ERROR' }
 
 // Initial state
@@ -33,6 +38,8 @@ const initialState: WalletContextState = {
   error: null,
   smartAccount: null,
   transactions: [],
+  multiSigTransactions: [],
+  pendingMultiSigTxs: [],
 }
 
 // Wallet reducer
@@ -81,7 +88,34 @@ function walletReducer(state: WalletContextState, action: WalletAction): WalletC
             : tx
         ),
       }
-    
+
+    case 'ADD_MULTISIG_TRANSACTION':
+      return {
+        ...state,
+        multiSigTransactions: [...state.multiSigTransactions, action.payload],
+        pendingMultiSigTxs: action.payload.isComplete
+          ? state.pendingMultiSigTxs
+          : [...state.pendingMultiSigTxs, action.payload],
+      }
+
+    case 'UPDATE_MULTISIG_TRANSACTION':
+      const updatedMultiSigTxs = state.multiSigTransactions.map(tx =>
+        tx.hash === action.payload.hash
+          ? { ...tx, ...action.payload.updates }
+          : tx
+      )
+      const updatedPendingTxs = state.pendingMultiSigTxs.map(tx =>
+        tx.hash === action.payload.hash
+          ? { ...tx, ...action.payload.updates }
+          : tx
+      ).filter(tx => !tx.isComplete)
+
+      return {
+        ...state,
+        multiSigTransactions: updatedMultiSigTxs,
+        pendingMultiSigTxs: updatedPendingTxs,
+      }
+
     case 'CLEAR_ERROR':
       return { ...state, error: null }
     
@@ -96,6 +130,8 @@ interface WalletContextValue extends WalletContextState {
   disconnectWallet: () => void
   sendTransaction: (to: Address, value: string, data?: string) => Promise<Hash>
   sendUserOperation: (calls: Array<{ to: Address; value?: bigint; data?: string }>) => Promise<Hash>
+  sendMultiSigTransaction: (to: Address, value: string, data?: string) => Promise<MultiSigTransaction>
+  signMultiSigTransaction: (txHash: Hash, validatorId: string) => Promise<void>
   refreshBalance: () => Promise<void>
   refreshSmartAccount: () => Promise<void>
   clearError: () => void
@@ -304,6 +340,185 @@ export function WalletProvider({ children }: WalletProviderProps) {
     }
   }
 
+  // Send multi-signature transaction function
+  const sendMultiSigTransaction = async (to: Address, value: string, data?: string): Promise<MultiSigTransaction> => {
+    dispatch({ type: 'SET_LOADING', payload: true })
+
+    try {
+      // Check if multi-sig is required
+      const requiresMultiSig = multiValidatorService.requiresMultiSig(value)
+      const threshold = multiValidatorService.getThreshold()
+
+      if (!requiresMultiSig) {
+        // If multi-sig is not required, send as regular transaction
+        const hash = await walletService.sendTransaction(to, value, data)
+
+        // Convert to MultiSigTransaction format for consistency
+        const multiSigTx: MultiSigTransaction = {
+          hash,
+          to,
+          value,
+          status: 'pending',
+          timestamp: Date.now(),
+          requiredSignatures: 1,
+          collectedSignatures: [],
+          isComplete: true,
+        }
+
+        dispatch({ type: 'ADD_MULTISIG_TRANSACTION', payload: multiSigTx })
+        dispatch({ type: 'SET_LOADING', payload: false })
+
+        return multiSigTx
+      }
+
+      // For multi-sig transactions, create a proposal via the backend API
+      const validators = multiValidatorService.getValidators()
+      const authToken = localStorage.getItem('auth_token') || 'demo_token'
+
+      const response = await fetch('/api/multisig/proposals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          to,
+          value,
+          data,
+          requiredSignatures: threshold,
+          validatorIds: validators.map(v => v.id),
+          expiresIn: 24 * 60 * 60, // 24 hours
+          metadata: {
+            title: `Transfer ${value} ETH`,
+            description: `Transfer ${value} ETH to ${to}`,
+            type: 'transfer'
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create multi-sig proposal')
+      }
+
+      const result = await response.json()
+      const proposal = result.data
+
+      // Convert proposal to MultiSigTransaction format
+      const multiSigTx: MultiSigTransaction = {
+        hash: proposal.id as Hash,
+        to: proposal.to,
+        value: proposal.value,
+        status: 'pending',
+        timestamp: proposal.createdAt,
+        requiredSignatures: proposal.requiredSignatures,
+        collectedSignatures: proposal.signatures || [],
+        isComplete: false,
+        expiresAt: proposal.expiresAt,
+      }
+
+      dispatch({ type: 'ADD_MULTISIG_TRANSACTION', payload: multiSigTx })
+      dispatch({ type: 'SET_LOADING', payload: false })
+
+      return multiSigTx
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send multi-sig transaction'
+      dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      throw error
+    }
+  }
+
+  // Sign multi-signature transaction function
+  const signMultiSigTransaction = async (txHash: Hash, validatorId: string): Promise<void> => {
+    dispatch({ type: 'SET_LOADING', payload: true })
+
+    try {
+      // Find the transaction
+      const tx = state.multiSigTransactions.find(t => t.hash === txHash)
+      if (!tx) {
+        throw new Error('Transaction not found')
+      }
+
+      // Check if already signed by this validator
+      if (tx.collectedSignatures.some(sig => sig.validatorId === validatorId)) {
+        throw new Error('Already signed by this validator')
+      }
+
+      // Get validator info
+      const validator = multiValidatorService.getValidatorById(validatorId)
+      if (!validator) {
+        throw new Error('Validator not found')
+      }
+
+      // Generate real signature using the signature service
+      const { signatureService } = await import('@/services/backend/signatureService')
+      const signature = await signatureService.generateSignature(
+        txHash,
+        {
+          to: tx.to,
+          value: tx.value,
+          data: tx.data
+        },
+        validatorId,
+        validator.type
+      )
+
+      // Sign the proposal via the backend API
+      const authToken = localStorage.getItem('auth_token') || 'demo_token'
+
+      const response = await fetch(`/api/multisig/proposals/${txHash}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          validatorId,
+          signature,
+          signerType: validator.type,
+          metadata: {
+            deviceInfo: navigator.userAgent,
+            timestamp: Date.now()
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to sign proposal')
+      }
+
+      const result = await response.json()
+      const updatedProposal = result.data.proposal
+
+      // Update local state
+      dispatch({
+        type: 'UPDATE_MULTISIG_TRANSACTION',
+        payload: {
+          hash: txHash,
+          updates: {
+            collectedSignatures: updatedProposal.signatures || [],
+            isComplete: updatedProposal.status === 'executed',
+            status: updatedProposal.status === 'executed' ? 'confirmed' : 'pending',
+          },
+        },
+      })
+
+      // Update validator last used
+      multiValidatorService.updateValidatorLastUsed(validatorId)
+
+      // If transaction was executed, refresh balance
+      if (result.data.executed) {
+        refreshBalance()
+      }
+
+      dispatch({ type: 'SET_LOADING', payload: false })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sign transaction'
+      dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      throw error
+    }
+  }
+
   // Clear error function
   const clearError = () => {
     dispatch({ type: 'CLEAR_ERROR' })
@@ -315,6 +530,8 @@ export function WalletProvider({ children }: WalletProviderProps) {
     disconnectWallet,
     sendTransaction,
     sendUserOperation,
+    sendMultiSigTransaction,
+    signMultiSigTransaction,
     refreshBalance,
     refreshSmartAccount,
     clearError,

@@ -9,15 +9,18 @@ import AccountInfo from './AccountInfo'
 import SendTransaction from './SendTransaction'
 import MintNFT from './MintNFT'
 import Button from '@/components/ui/Button'
-import { 
+import Link from 'next/link'
+import { CrossDeviceNotifications } from '@/components/CrossDeviceNotifications'
+import {
   ArrowRightOnRectangleIcon,
   EyeIcon,
   EyeSlashIcon,
-  Cog6ToothIcon 
+  Cog6ToothIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 
 const WalletDashboard: React.FC = () => {
-  const { logout, username, authMethod } = useAuth()
+  const { logout, username, authMethod, validators, isMultiSig } = useAuth()
   const { address, isConnected } = useWallet()
   const [showBalance, setShowBalance] = useState(true)
   const [showSendModal, setShowSendModal] = useState(false)
@@ -55,8 +58,14 @@ const WalletDashboard: React.FC = () => {
             <div className="flex items-center">
               <h1 className="text-xl font-semibold text-gray-900">ZeroWallet</h1>
               <div className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                {authMethod === 'passkey' ? '🔐 Passkey' : '👤 Social'}
+                {authMethod === 'passkey' ? '🔐 Passkey' :
+                 authMethod === 'multi-sig' ? '🛡️ Multi-Sig' : '👤 Social'}
               </div>
+              {isMultiSig && (
+                <div className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  {validators.length} signers
+                </div>
+              )}
             </div>
             
             <div className="flex items-center space-x-4">
@@ -76,11 +85,21 @@ const WalletDashboard: React.FC = () => {
                 )}
               </button>
               
+              <Link href="/security">
+                <Button variant="ghost" size="sm">
+                  <ShieldCheckIcon className="h-4 w-4 mr-2" />
+                  Security
+                </Button>
+              </Link>
+
               <Button variant="ghost" size="sm">
                 <Cog6ToothIcon className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              
+
+              {/* Cross-Device Notifications */}
+              <CrossDeviceNotifications />
+
               <Button
                 onClick={handleLogout}
                 variant="outline"

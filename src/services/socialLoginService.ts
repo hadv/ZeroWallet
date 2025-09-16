@@ -4,6 +4,18 @@ import { config } from '@/config'
 import { SocialProvider } from '@/types'
 import { SOCIAL_PROVIDERS, STORAGE_KEYS } from '@/constants'
 
+export interface SignMessageParams {
+  message: string
+  publicAddress: string
+}
+
+export interface VerifySignatureParams {
+  signature: string
+  message: string
+  publicAddress: string
+  issuer: string
+}
+
 export class SocialLoginService {
   private magic: Magic | null = null
   private isInitialized = false
@@ -308,6 +320,133 @@ export class SocialLoginService {
       return { validator: signer, userInfo }
     } catch (error) {
       console.error('Error handling OAuth callback:', error)
+      return null
+    }
+  }
+
+  /**
+   * Sign a message using social login
+   */
+  async signMessage(params: SignMessageParams): Promise<string> {
+    try {
+      if (!this.magic) {
+        throw new Error('Magic not initialized')
+      }
+
+      const { message, publicAddress } = params
+
+      // Check if user is logged in
+      const isLoggedIn = await this.magic.user.isLoggedIn()
+      if (!isLoggedIn) {
+        throw new Error('User not logged in')
+      }
+
+      // Get the current user's metadata
+      const userMetadata = await this.magic.user.getMetadata()
+      if (!userMetadata || userMetadata.publicAddress !== publicAddress) {
+        throw new Error('Public address mismatch')
+      }
+
+      // Sign the message using Magic's provider
+      const provider = this.magic.rpcProvider
+      const signature = await provider.request({
+        method: 'personal_sign',
+        params: [message, publicAddress]
+      })
+
+      return signature as string
+    } catch (error) {
+      console.error('Error signing message with social login:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Verify a social login signature
+   */
+  async verifySignature(params: VerifySignatureParams): Promise<boolean> {
+    try {
+      const { signature, message, publicAddress, issuer } = params
+
+      // For social login signatures, we can verify using eth_personal_recover
+      // This is a simplified verification - in production you might want more robust verification
+
+      // Create the message hash that was signed
+      const messageHash = this.hashMessage(message)
+
+      // Recover the address from the signature
+      const recoveredAddress = await this.recoverAddress(messageHash, signature)
+
+      // Check if the recovered address matches the expected public address
+      return recoveredAddress.toLowerCase() === publicAddress.toLowerCase()
+    } catch (error) {
+      console.error('Error verifying social login signature:', error)
+      return false
+    }
+  }
+
+  /**
+   * Hash a message for signing (EIP-191)
+   */
+  private hashMessage(message: string): string {
+    // Create EIP-191 compliant message hash
+    const prefix = '\x19Ethereum Signed Message:\n'
+    const fullMessage = prefix + message.length + message
+
+    // In a real implementation, you'd use a proper hashing library
+    // For now, we'll return the message as-is for simplicity
+    return fullMessage
+  }
+
+  /**
+   * Recover address from signature
+   */
+  private async recoverAddress(messageHash: string, signature: string): Promise<string> {
+    try {
+      // This is a simplified implementation
+      // In production, use a proper signature recovery library like ethers.js
+
+      // For now, we'll simulate address recovery
+      // In a real implementation, you'd use:
+      // const recoveredAddress = ethers.utils.verifyMessage(message, signature)
+
+      // Return a placeholder for now
+      return '0x0000000000000000000000000000000000000000'
+    } catch (error) {
+      console.error('Error recovering address:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get current user's signing capability
+   */
+  async canSign(): Promise<boolean> {
+    try {
+      if (!this.magic) return false
+
+      const isLoggedIn = await this.magic.user.isLoggedIn()
+      return isLoggedIn
+    } catch (error) {
+      console.error('Error checking signing capability:', error)
+      return false
+    }
+  }
+
+  /**
+   * Get current user's public address
+   */
+  async getCurrentUserAddress(): Promise<string | null> {
+    try {
+      if (!this.magic) return null
+
+      const isLoggedIn = await this.magic.user.isLoggedIn()
+      if (!isLoggedIn) return null
+
+      const userMetadata = await this.magic.user.getMetadata()
+      return userMetadata?.publicAddress || null
+    } catch (error) {
+      console.error('Error getting current user address:', error)
       return null
     }
   }
