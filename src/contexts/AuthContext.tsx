@@ -1,9 +1,10 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
-import { AuthState, PasskeyCredential, SocialProvider } from '@/types'
+import { AuthState, PasskeyCredential, SocialProvider, ValidatorInfo, AddSignerRequest } from '@/types'
 import { passkeyService } from '@/services/passkeyService'
 import { socialLoginService } from '@/services/socialLoginService'
+import { multiValidatorService } from '@/services/multiValidatorService'
 import { useWallet } from './WalletContext'
 import { STORAGE_KEYS } from '@/constants'
 
@@ -16,12 +17,14 @@ interface AuthContextState extends AuthState {
   }
   socialProviders: SocialProvider[]
   userInfo: any
+  validators: ValidatorInfo[]
+  isMultiSig: boolean
 }
 
 // Auth actions
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_AUTHENTICATED'; payload: { username: string; authMethod: 'passkey' | 'social'; userInfo?: any } }
+  | { type: 'SET_AUTHENTICATED'; payload: { username: string; authMethod: 'passkey' | 'social' | 'multi-sig'; userInfo?: any } }
   | { type: 'SET_UNAUTHENTICATED' }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'SET_AVAILABLE_USERNAMES'; payload: string[] }
@@ -29,6 +32,10 @@ type AuthAction =
   | { type: 'SET_SOCIAL_PROVIDERS'; payload: SocialProvider[] }
   | { type: 'SET_USER_INFO'; payload: any }
   | { type: 'CLEAR_ERROR' }
+  | { type: 'SET_VALIDATORS'; payload: ValidatorInfo[] }
+  | { type: 'SET_MULTI_SIG'; payload: boolean }
+  | { type: 'ADD_VALIDATOR'; payload: ValidatorInfo }
+  | { type: 'REMOVE_VALIDATOR'; payload: string }
 
 // Initial state
 const initialState: AuthContextState = {
@@ -44,6 +51,8 @@ const initialState: AuthContextState = {
   },
   socialProviders: [],
   userInfo: null,
+  validators: [],
+  isMultiSig: false,
 }
 
 // Auth reducer
@@ -90,7 +99,28 @@ function authReducer(state: AuthContextState, action: AuthAction): AuthContextSt
 
     case 'CLEAR_ERROR':
       return { ...state, error: null }
-    
+
+    case 'SET_VALIDATORS':
+      return { ...state, validators: action.payload }
+
+    case 'SET_MULTI_SIG':
+      return { ...state, isMultiSig: action.payload }
+
+    case 'ADD_VALIDATOR':
+      return {
+        ...state,
+        validators: [...state.validators, action.payload],
+        isMultiSig: state.validators.length + 1 > 1
+      }
+
+    case 'REMOVE_VALIDATOR':
+      const updatedValidators = state.validators.filter(v => v.id !== action.payload)
+      return {
+        ...state,
+        validators: updatedValidators,
+        isMultiSig: updatedValidators.length > 1
+      }
+
     default:
       return state
   }
@@ -107,6 +137,10 @@ interface AuthContextValue extends AuthContextState {
   deletePasskey: (username: string) => boolean
   validateUsername: (username: string) => { isValid: boolean; error?: string }
   refreshAvailableUsernames: () => void
+  addPasskeySigner: (request: AddSignerRequest) => Promise<ValidatorInfo>
+  removeValidator: (validatorId: string) => Promise<boolean>
+  getValidators: () => ValidatorInfo[]
+  upgradeToMultiSig: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -140,6 +174,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Load social providers
       const providers = socialLoginService.getAvailableProviders()
       dispatch({ type: 'SET_SOCIAL_PROVIDERS', payload: providers })
+
+      // Load validators from multi-validator service
+      const validators = multiValidatorService.getValidators()
+      dispatch({ type: 'SET_VALIDATORS', payload: validators })
+      dispatch({ type: 'SET_MULTI_SIG', payload: multiValidatorService.isMultiSig() })
 
       // Check for persisted auth state
       try {
@@ -254,6 +293,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Login with email using Magic
       const { validator, userInfo } = await socialLoginService.loginWithEmail(email)
 
+      // Initialize multi-validator service with social login
+      const primarySigner = await multiValidatorService.initializeWithSocialLogin(validator, userInfo)
+
+      // Update validators state
+      dispatch({ type: 'SET_VALIDATORS', payload: [primarySigner] })
+      dispatch({ type: 'SET_MULTI_SIG', payload: false })
+
       // Connect wallet with the social validator
       await connectWallet(validator)
 
@@ -276,6 +322,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Login with social provider using Magic
       const { validator, userInfo } = await socialLoginService.loginWithSocial(provider)
+
+      // Initialize multi-validator service with social login
+      const primarySigner = await multiValidatorService.initializeWithSocialLogin(validator, userInfo)
+
+      // Update validators state
+      dispatch({ type: 'SET_VALIDATORS', payload: [primarySigner] })
+      dispatch({ type: 'SET_MULTI_SIG', payload: false })
 
       // Connect wallet with the social validator
       await connectWallet(validator)
@@ -344,6 +397,83 @@ export function AuthProvider({ children }: AuthProviderProps) {
     dispatch({ type: 'SET_AVAILABLE_USERNAMES', payload: usernames })
   }
 
+  // Add passkey signer function
+  const addPasskeySigner = async (request: AddSignerRequest): Promise<ValidatorInfo> => {
+    try {
+      const newSigner = await multiValidatorService.addPasskeySigner(request)
+
+      // Update validators state
+      const updatedValidators = multiValidatorService.getValidators()
+      dispatch({ type: 'SET_VALIDATORS', payload: updatedValidators })
+      dispatch({ type: 'SET_MULTI_SIG', payload: multiValidatorService.isMultiSig() })
+
+      // If we now have multiple signers, update auth method
+      if (multiValidatorService.isMultiSig()) {
+        dispatch({
+          type: 'SET_AUTHENTICATED',
+          payload: {
+            username: state.username || 'multi-sig-user',
+            authMethod: 'multi-sig',
+            userInfo: state.userInfo
+          },
+        })
+      }
+
+      return newSigner
+    } catch (error) {
+      console.error('Error adding passkey signer:', error)
+      throw error
+    }
+  }
+
+  // Remove validator function
+  const removeValidator = async (validatorId: string): Promise<boolean> => {
+    try {
+      const success = await multiValidatorService.removeSigner({
+        validatorId,
+        confirmationMethod: 'passkey'
+      })
+
+      if (success) {
+        // Update validators state
+        const updatedValidators = multiValidatorService.getValidators()
+        dispatch({ type: 'SET_VALIDATORS', payload: updatedValidators })
+        dispatch({ type: 'SET_MULTI_SIG', payload: multiValidatorService.isMultiSig() })
+
+        // If we're back to single signer, update auth method
+        if (!multiValidatorService.isMultiSig()) {
+          dispatch({
+            type: 'SET_AUTHENTICATED',
+            payload: {
+              username: state.username || 'user',
+              authMethod: 'social',
+              userInfo: state.userInfo
+            },
+          })
+        }
+      }
+
+      return success
+    } catch (error) {
+      console.error('Error removing validator:', error)
+      throw error
+    }
+  }
+
+  // Get validators function
+  const getValidators = (): ValidatorInfo[] => {
+    return multiValidatorService.getValidators()
+  }
+
+  // Upgrade to multi-sig function
+  const upgradeToMultiSig = async (): Promise<void> => {
+    // This would be called after adding the first additional signer
+    // The upgrade happens automatically in addPasskeySigner
+    const validators = multiValidatorService.getValidators()
+    dispatch({ type: 'SET_VALIDATORS', payload: validators })
+    dispatch({ type: 'SET_MULTI_SIG', payload: multiValidatorService.isMultiSig() })
+  }
+
   const value: AuthContextValue = {
     ...state,
     registerWithPasskey,
@@ -355,6 +485,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     deletePasskey,
     validateUsername,
     refreshAvailableUsernames,
+    addPasskeySigner,
+    removeValidator,
+    getValidators,
+    upgradeToMultiSig,
   }
 
   return (

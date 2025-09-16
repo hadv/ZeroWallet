@@ -14,6 +14,7 @@
     "@zerodev/passkey-validator": "^5.5.5",
     "@zerodev/sdk": "^5.4.41",
     "@zerodev/social-validator": "^5.2.3",
+    "@zerodev/weighted-validator": "^5.4.6",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
     "magic-sdk": "^30.0.0",

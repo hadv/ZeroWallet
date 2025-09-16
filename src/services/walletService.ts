@@ -6,9 +6,18 @@ import {
   KernelSmartAccount,
 } from '@zerodev/sdk'
 import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants'
+import { toWeightedValidator } from '@zerodev/weighted-validator'
 import { createPublicClient, http, Address, Hash, parseEther } from 'viem'
 import { config, getCurrentChain } from '@/config'
-import { WalletState, SmartAccount, Transaction } from '@/types'
+import {
+  WalletState,
+  SmartAccount,
+  Transaction,
+  MultiSigSmartAccount,
+  ValidatorInfo,
+  MultiValidatorConfig
+} from '@/types'
+import { multiValidatorService } from './multiValidatorService'
 
 export class WalletService {
   private kernelAccount: KernelSmartAccount | null = null
@@ -16,6 +25,8 @@ export class WalletService {
   private publicClient: any = null
   private chain = getCurrentChain()
   private entryPoint = getEntryPoint('0.7')
+  private currentValidator: any = null
+  private isMultiSig: boolean = false
 
   constructor() {
     this.initializePublicClient()
@@ -33,6 +44,9 @@ export class WalletService {
    */
   async createAccount(validator: any): Promise<KernelSmartAccount> {
     try {
+      this.currentValidator = validator
+      this.isMultiSig = false
+
       this.kernelAccount = await createKernelAccount({
         plugins: {
           sudo: validator,
@@ -45,6 +59,41 @@ export class WalletService {
     } catch (error) {
       console.error('Error creating kernel account:', error)
       throw new Error('Failed to create smart account')
+    }
+  }
+
+  /**
+   * Create a multi-signature kernel account with multiple validators
+   */
+  async createMultiSigAccount(config: MultiValidatorConfig): Promise<KernelSmartAccount> {
+    try {
+      // Create weighted validator with multiple signers
+      const weightedValidator = await toWeightedValidator({
+        config: {
+          threshold: config.threshold,
+          signers: [
+            { signer: config.primaryValidator, weight: 1 },
+            ...config.additionalValidators.map(validator => ({ signer: validator, weight: 1 }))
+          ]
+        },
+        entryPoint: this.entryPoint,
+      })
+
+      this.currentValidator = weightedValidator
+      this.isMultiSig = true
+
+      this.kernelAccount = await createKernelAccount({
+        plugins: {
+          sudo: weightedValidator,
+        },
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+      })
+
+      return this.kernelAccount
+    } catch (error) {
+      console.error('Error creating multi-sig kernel account:', error)
+      throw new Error('Failed to create multi-signature smart account')
     }
   }
 
@@ -235,11 +284,88 @@ export class WalletService {
   }
 
   /**
+   * Get multi-signature smart account info
+   */
+  async getMultiSigAccountInfo(): Promise<MultiSigSmartAccount | null> {
+    if (!this.kernelAccount) {
+      return null
+    }
+
+    try {
+      const [isDeployed, nonce] = await Promise.all([
+        this.isAccountDeployed(),
+        this.getAccountNonce(),
+      ])
+
+      const validators = multiValidatorService.getValidators()
+      const primarySigner = multiValidatorService.getPrimaryValidator()
+      const additionalSigners = validators.filter(v => v.id !== primarySigner?.id)
+      const signingPolicy = multiValidatorService.getSigningPolicy()
+
+      if (!primarySigner) {
+        return null
+      }
+
+      return {
+        address: this.kernelAccount.address,
+        owner: this.kernelAccount.address,
+        isDeployed,
+        nonce,
+        primarySigner,
+        additionalSigners,
+        signingPolicy,
+        isMultiSig: this.isMultiSig,
+      }
+    } catch (error) {
+      console.error('Error getting multi-sig smart account info:', error)
+      return null
+    }
+  }
+
+  /**
+   * Upgrade existing account to multi-signature
+   */
+  async upgradeToMultiSig(additionalValidators: any[]): Promise<KernelSmartAccount> {
+    if (!this.currentValidator) {
+      throw new Error('No current validator found')
+    }
+
+    if (additionalValidators.length === 0) {
+      throw new Error('At least one additional validator is required')
+    }
+
+    const config: MultiValidatorConfig = {
+      primaryValidator: this.currentValidator,
+      additionalValidators,
+      threshold: Math.min(2, additionalValidators.length + 1), // Require at least 2 signatures
+      policy: multiValidatorService.getSigningPolicy(),
+    }
+
+    return this.createMultiSigAccount(config)
+  }
+
+  /**
+   * Check if the current account is multi-signature
+   */
+  isMultiSigAccount(): boolean {
+    return this.isMultiSig
+  }
+
+  /**
+   * Get current validator
+   */
+  getCurrentValidator(): any {
+    return this.currentValidator
+  }
+
+  /**
    * Reset the wallet service
    */
   reset() {
     this.kernelAccount = null
     this.kernelClient = null
+    this.currentValidator = null
+    this.isMultiSig = false
   }
 
   /**

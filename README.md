@@ -5,14 +5,21 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 ## 🌟 Features
 
 ### Authentication Methods
+- **Social Login First**: Start with easy email/social authentication using Magic.link
+- **Progressive Security**: Add passkeys for enhanced multi-signature security
 - **Passkey Authentication**: Secure biometric authentication using WebAuthn (Face ID, Touch ID, Windows Hello)
-- **Social Login**: Email-based authentication with Magic.link
 - **No Seed Phrases**: Eliminate the complexity of traditional wallet management
+
+### Multi-Signature Security
+- **Progressive Enhancement**: Start with social login, upgrade to multi-sig by adding passkeys
+- **Flexible Policies**: Configure signature thresholds and high-value transaction requirements
+- **Multiple Signers**: Support for both social login and passkey validators
+- **Secure Recovery**: Multiple authentication methods prevent account lockout
 
 ### Smart Account Benefits
 - **Gas Sponsorship**: Transactions sponsored by ZeroDev (no ETH needed for gas)
 - **Account Abstraction**: ERC-4337 compliant smart accounts
-- **Enhanced Security**: Multi-signature capabilities and recovery mechanisms
+- **Multi-Signature Support**: Enhanced security with configurable signature requirements
 - **Batch Transactions**: Execute multiple operations in a single transaction
 
 ### User Experience
@@ -20,6 +27,28 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 - **Real-time Balance**: Live ETH balance updates
 - **Transaction History**: Complete transaction tracking with status updates
 - **Demo Features**: NFT minting and token sending capabilities
+
+## 🔐 Multi-Signature Workflow
+
+### Getting Started with Multi-Sig
+1. **Initial Setup**: Login with social authentication (Google, GitHub, or email)
+2. **Add Security**: Navigate to Security Settings and add a passkey signer
+3. **Configure Policy**: Set signature thresholds and high-value transaction limits
+4. **Enhanced Security**: Transactions now require multiple signatures based on your policy
+
+### Multi-Sig Transaction Flow
+1. **Transaction Creation**: User initiates a transaction
+2. **Policy Check**: System determines if multi-sig is required based on:
+   - Transaction value vs. high-value threshold
+   - Current security policy settings
+3. **Signature Collection**: Required signers approve the transaction
+4. **Execution**: Transaction executes once threshold is met
+
+### Security Settings
+- **Signer Management**: Add/remove passkeys and view active signers
+- **Signature Policies**: Configure when multi-sig is required
+- **Threshold Settings**: Set how many signatures are needed
+- **High-Value Limits**: Automatic multi-sig for large transactions
 
 ## 🚀 Quick Start
 
@@ -87,17 +116,24 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 ### Core Components
 
 #### Authentication Layer
-- **AuthContext**: Manages authentication state and methods
+- **AuthContext**: Manages authentication state and multi-signer operations
 - **PasskeyService**: Handles WebAuthn passkey operations
 - **SocialLoginService**: Manages Magic.link social authentication
+- **MultiValidatorService**: Coordinates multiple authentication methods
 
 #### Wallet Layer
-- **WalletContext**: Manages wallet state and transactions
+- **WalletContext**: Manages wallet state, transactions, and multi-sig operations
 - **WalletService**: Core wallet operations and smart account management
+
+#### Multi-Signature Components
+- **SignerManagement**: Interface for adding/removing signers
+- **SecuritySettings**: Comprehensive security configuration page
+- **MultiSigTransactionModal**: Transaction signing interface
+- **SignerCard**: Individual signer display component
 
 #### UI Components
 - **LoginForm/RegisterForm**: Authentication interfaces
-- **WalletDashboard**: Main wallet interface
+- **WalletDashboard**: Main wallet interface with security status
 - **SendTransaction**: Transaction sending modal
 - **MintNFT**: Demo NFT minting functionality
 
@@ -107,6 +143,7 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 - **Blockchain**: Viem, ZeroDev SDK
 - **Authentication**: WebAuthn, Magic.link
 - **Smart Accounts**: ERC-4337, Kernel accounts
+- **Multi-Signature**: ZeroDev Weighted Validator, Custom Multi-Validator Service
 
 ## 🔐 Security Features
 

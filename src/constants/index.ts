@@ -87,6 +87,7 @@ export const TRANSACTION_STATUS = {
 export const AUTH_METHODS = {
   PASSKEY: 'passkey',
   SOCIAL: 'social',
+  MULTI_SIG: 'multi-sig',
 } as const
 
 // Error codes
@@ -123,6 +124,10 @@ export const STORAGE_KEYS = {
   TRANSACTIONS: 'zerowallet_transactions',
   SETTINGS: 'zerowallet_settings',
   PASSKEY_CREDENTIALS: 'zerowallet_passkeys',
+  MULTI_SIG_VALIDATORS: 'zerowallet_multi_sig_validators',
+  SIGNING_POLICY: 'zerowallet_signing_policy',
+  PENDING_OPERATIONS: 'zerowallet_pending_operations',
+  SOCIAL_USER_INFO: 'zerowallet_social_user_info',
 } as const
 
 // API endpoints
