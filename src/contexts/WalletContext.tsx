@@ -371,20 +371,49 @@ export function WalletProvider({ children }: WalletProviderProps) {
         return multiSigTx
       }
 
-      // For multi-sig transactions, create a pending transaction
-      // In a real implementation, this would involve creating a proposal
-      // that other signers can sign
-      const txId = `multisig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      // For multi-sig transactions, create a proposal via the backend API
+      const validators = multiValidatorService.getValidators()
+      const authToken = localStorage.getItem('auth_token') || 'demo_token'
+
+      const response = await fetch('/api/multisig/proposals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          to,
+          value,
+          data,
+          requiredSignatures: threshold,
+          validatorIds: validators.map(v => v.id),
+          expiresIn: 24 * 60 * 60, // 24 hours
+          metadata: {
+            title: `Transfer ${value} ETH`,
+            description: `Transfer ${value} ETH to ${to}`,
+            type: 'transfer'
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create multi-sig proposal')
+      }
+
+      const result = await response.json()
+      const proposal = result.data
+
+      // Convert proposal to MultiSigTransaction format
       const multiSigTx: MultiSigTransaction = {
-        hash: txId as Hash,
-        to,
-        value,
+        hash: proposal.id as Hash,
+        to: proposal.to,
+        value: proposal.value,
         status: 'pending',
-        timestamp: Date.now(),
-        requiredSignatures: threshold,
-        collectedSignatures: [],
+        timestamp: proposal.createdAt,
+        requiredSignatures: proposal.requiredSignatures,
+        collectedSignatures: proposal.signatures || [],
         isComplete: false,
-        expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 hours
+        expiresAt: proposal.expiresAt,
       }
 
       dispatch({ type: 'ADD_MULTISIG_TRANSACTION', payload: multiSigTx })
@@ -420,68 +449,66 @@ export function WalletProvider({ children }: WalletProviderProps) {
         throw new Error('Validator not found')
       }
 
-      // Create signature (in real implementation, this would involve actual signing)
-      const signature: ValidatorSignature = {
+      // Generate real signature using the signature service
+      const { signatureService } = await import('@/services/backend/signatureService')
+      const signature = await signatureService.generateSignature(
+        txHash,
+        {
+          to: tx.to,
+          value: tx.value,
+          data: tx.data
+        },
         validatorId,
-        signature: `sig_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        signedAt: Date.now(),
-        signerType: validator.type,
+        validator.type
+      )
+
+      // Sign the proposal via the backend API
+      const authToken = localStorage.getItem('auth_token') || 'demo_token'
+
+      const response = await fetch(`/api/multisig/proposals/${txHash}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          validatorId,
+          signature,
+          signerType: validator.type,
+          metadata: {
+            deviceInfo: navigator.userAgent,
+            timestamp: Date.now()
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to sign proposal')
       }
 
-      const updatedSignatures = [...tx.collectedSignatures, signature]
-      const isComplete = updatedSignatures.length >= tx.requiredSignatures
+      const result = await response.json()
+      const updatedProposal = result.data.proposal
 
-      // If complete, execute the transaction
-      if (isComplete) {
-        try {
-          const hash = await walletService.sendTransaction(tx.to, tx.value)
-
-          dispatch({
-            type: 'UPDATE_MULTISIG_TRANSACTION',
-            payload: {
-              hash: txHash,
-              updates: {
-                collectedSignatures: updatedSignatures,
-                isComplete: true,
-                status: 'confirmed',
-                hash, // Update with actual transaction hash
-              },
-            },
-          })
-
-          // Update validator last used
-          multiValidatorService.updateValidatorLastUsed(validatorId)
-
-          // Refresh balance
-          refreshBalance()
-        } catch (execError) {
-          dispatch({
-            type: 'UPDATE_MULTISIG_TRANSACTION',
-            payload: {
-              hash: txHash,
-              updates: {
-                collectedSignatures: updatedSignatures,
-                isComplete: true,
-                status: 'failed',
-              },
-            },
-          })
-          throw execError
-        }
-      } else {
-        // Just update signatures
-        dispatch({
-          type: 'UPDATE_MULTISIG_TRANSACTION',
-          payload: {
-            hash: txHash,
-            updates: {
-              collectedSignatures: updatedSignatures,
-            },
+      // Update local state
+      dispatch({
+        type: 'UPDATE_MULTISIG_TRANSACTION',
+        payload: {
+          hash: txHash,
+          updates: {
+            collectedSignatures: updatedProposal.signatures || [],
+            isComplete: updatedProposal.status === 'executed',
+            status: updatedProposal.status === 'executed' ? 'confirmed' : 'pending',
           },
-        })
+        },
+      })
 
-        // Update validator last used
-        multiValidatorService.updateValidatorLastUsed(validatorId)
+      // Update validator last used
+      multiValidatorService.updateValidatorLastUsed(validatorId)
+
+      // If transaction was executed, refresh balance
+      if (result.data.executed) {
+        refreshBalance()
       }
 
       dispatch({ type: 'SET_LOADING', payload: false })

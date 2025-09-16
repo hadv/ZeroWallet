@@ -10,6 +10,7 @@ import SendTransaction from './SendTransaction'
 import MintNFT from './MintNFT'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
+import { CrossDeviceNotifications } from '@/components/CrossDeviceNotifications'
 import {
   ArrowRightOnRectangleIcon,
   EyeIcon,
@@ -95,7 +96,10 @@ const WalletDashboard: React.FC = () => {
                 <Cog6ToothIcon className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              
+
+              {/* Cross-Device Notifications */}
+              <CrossDeviceNotifications />
+
               <Button
                 onClick={handleLogout}
                 variant="outline"
