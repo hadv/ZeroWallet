@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SocialRecoveryProvider } from "@/contexts/SocialRecoveryContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,7 +32,9 @@ export default function RootLayout({
       >
         <WalletProvider>
           <AuthProvider>
-            {children}
+            <SocialRecoveryProvider>
+              {children}
+            </SocialRecoveryProvider>
           </AuthProvider>
         </WalletProvider>
       </body>

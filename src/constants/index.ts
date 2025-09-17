@@ -129,6 +129,13 @@ export const STORAGE_KEYS = {
   PENDING_OPERATIONS: 'zerowallet_pending_operations',
   SOCIAL_USER_INFO: 'zerowallet_social_user_info',
   WEB3AUTH_USER_INFO: 'web3auth_user_info',
+  // Social Recovery Storage Keys
+  SOCIAL_RECOVERY_CONFIG: 'zerowallet_social_recovery_config',
+  GUARDIANS: 'zerowallet_guardians',
+  RECOVERY_REQUESTS: 'zerowallet_recovery_requests',
+  GUARDIAN_INVITATIONS: 'zerowallet_guardian_invitations',
+  RECOVERY_SECURITY_EVENTS: 'zerowallet_recovery_security_events',
+  RECOVERY_NOTIFICATIONS: 'zerowallet_recovery_notifications',
 } as const
 
 // API endpoints
