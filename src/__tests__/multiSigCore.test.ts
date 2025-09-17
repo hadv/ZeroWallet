@@ -208,8 +208,8 @@ describe('Multi-Signature Core Functionality', () => {
         totalCost: BigInt('175000') * BigInt('20000000000')
       }
 
-      expect(gasEstimate.gasLimit).toBeGreaterThan(0n)
-      expect(gasEstimate.gasPrice).toBeGreaterThan(0n)
+      expect(gasEstimate.gasLimit).toBeGreaterThan(BigInt(0))
+      expect(gasEstimate.gasPrice).toBeGreaterThan(BigInt(0))
       expect(gasEstimate.totalCost).toBe(gasEstimate.gasLimit * gasEstimate.gasPrice)
     })
 

@@ -59,10 +59,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     }
   }
 
-  const handleSocialLogin = async (provider: 'google' | 'github' | 'twitter' | 'discord') => {
+  const handleSocialLogin = async (provider?: 'google' | 'github' | 'twitter' | 'discord') => {
     try {
       clearError()
-      await loginWithSocial(provider)
+      await loginWithSocial()
     } catch (error) {
       // Error is handled by the context
     }
@@ -208,18 +208,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
         {/* Social Login */}
         {loginMethod === 'social' && (
           <div className="space-y-3">
-            {socialProviders.filter(p => p.enabled).map((provider) => (
-              <Button
-                key={provider.id}
-                onClick={() => handleSocialLogin(provider.id)}
-                disabled={isLoading}
-                variant="outline"
-                className="w-full justify-center"
-              >
-                <span className="mr-2">{getSocialProviderIcon(provider.id)}</span>
-                Continue with {provider.name}
-              </Button>
-            ))}
+            <Button
+              onClick={() => handleSocialLogin()}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full justify-center"
+            >
+              <span className="mr-2">🔐</span>
+              Continue with Web3Auth
+            </Button>
+            <p className="text-xs text-gray-500 text-center">
+              Web3Auth supports Google, GitHub, Twitter, Discord, and more social providers
+            </p>
           </div>
         )}
 

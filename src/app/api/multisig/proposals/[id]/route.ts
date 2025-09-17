@@ -5,21 +5,22 @@ import { authMiddleware } from '@/lib/auth-middleware'
 // GET /api/multisig/proposals/[id] - Get specific proposal
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const authResult = await authMiddleware(request)
     if (!authResult.success) {
       return NextResponse.json({ error: authResult.error }, { status: 401 })
     }
 
-    const proposal = await proposalService.getProposal(params.id)
+    const proposal = await proposalService.getProposal(id)
     if (!proposal) {
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 })
     }
 
     // Check if user has access to this proposal
-    const hasAccess = await proposalService.userHasAccess(authResult.userId, params.id)
+    const hasAccess = await proposalService.userHasAccess(authResult.userId!, id)
     if (!hasAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
@@ -40,15 +41,16 @@ export async function GET(
 // DELETE /api/multisig/proposals/[id] - Cancel proposal
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const authResult = await authMiddleware(request)
     if (!authResult.success) {
       return NextResponse.json({ error: authResult.error }, { status: 401 })
     }
 
-    const proposal = await proposalService.getProposal(params.id)
+    const proposal = await proposalService.getProposal(id)
     if (!proposal) {
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 })
     }
@@ -62,7 +64,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Can only cancel pending proposals' }, { status: 400 })
     }
 
-    await proposalService.cancelProposal(params.id)
+    await proposalService.cancelProposal(id)
 
     return NextResponse.json({
       success: true,

@@ -50,6 +50,22 @@ export interface SocialProvider {
   enabled: boolean
 }
 
+// Web3Auth types
+export interface Web3AuthUserInfo {
+  email?: string
+  name?: string
+  profileImage?: string
+  aggregateVerifier?: string
+  verifier?: string
+  verifierId?: string
+  typeOfLogin?: string
+}
+
+export interface Web3AuthLoginResult {
+  validator: any
+  userInfo: Web3AuthUserInfo
+}
+
 // Smart account types
 export interface SmartAccount {
   address: Address

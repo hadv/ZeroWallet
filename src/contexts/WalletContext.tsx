@@ -456,7 +456,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
         {
           to: tx.to,
           value: tx.value,
-          data: tx.data
+          data: (tx as any).data || '0x'
         },
         validatorId,
         validator.type

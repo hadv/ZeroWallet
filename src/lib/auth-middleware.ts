@@ -125,7 +125,7 @@ export async function rateLimitMiddleware(
 ): Promise<{ allowed: boolean; remaining: number }> {
   // Simple in-memory rate limiting
   // In production, use Redis or similar
-  const ip = request.ip || 'unknown'
+  const ip = (request as any).ip || request.headers.get('x-forwarded-for') || 'unknown'
   const key = `rate_limit_${ip}`
   
   // This is a simplified implementation
