@@ -43,7 +43,7 @@ const AccountInfo: React.FC = () => {
         return {
           icon: <UserCircleIcon className="h-5 w-5 text-green-500" />,
           text: 'Social Login',
-          description: userInfo?.loginMethod ? `Connected via ${userInfo.loginMethod}` : 'Social authentication'
+          description: userInfo?.typeOfLogin ? `Connected via ${userInfo.typeOfLogin}` : 'Social authentication'
         }
       default:
         return {

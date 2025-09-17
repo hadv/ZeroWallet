@@ -28,7 +28,7 @@ const MintNFT: React.FC<MintNFTProps> = ({ isOpen, onClose }) => {
 
     try {
       const chain = getCurrentChain()
-      const contractAddress = contractAddresses[chain.id]?.testNFT
+      const contractAddress = (contractAddresses as any)[chain.id]?.testNFT
 
       if (!contractAddress) {
         throw new Error('Test NFT contract not available on this network')

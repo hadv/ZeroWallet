@@ -48,10 +48,10 @@ export function CrossDeviceNotifications() {
       
       // Create device info
       const deviceInfo: DeviceInfo = {
-        deviceId: realtimeService.generateDeviceId(),
+        deviceId: (realtimeService.constructor as any).generateDeviceId(),
         deviceName: getDeviceName(),
         userAgent: navigator.userAgent,
-        capabilities: realtimeService.getDeviceCapabilities(),
+        capabilities: (realtimeService.constructor as any).getDeviceCapabilities(),
         platform: getPlatform()
       }
 

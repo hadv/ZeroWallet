@@ -103,10 +103,10 @@ export const ERROR_CODES = {
 
 // Gas limits
 export const GAS_LIMITS = {
-  SIMPLE_TRANSFER: 21000n,
-  ERC20_TRANSFER: 65000n,
-  ERC721_TRANSFER: 85000n,
-  CONTRACT_INTERACTION: 150000n,
+  SIMPLE_TRANSFER: BigInt(21000),
+  ERC20_TRANSFER: BigInt(65000),
+  ERC721_TRANSFER: BigInt(85000),
+  CONTRACT_INTERACTION: BigInt(150000),
 } as const
 
 // Time constants
@@ -128,6 +128,7 @@ export const STORAGE_KEYS = {
   SIGNING_POLICY: 'zerowallet_signing_policy',
   PENDING_OPERATIONS: 'zerowallet_pending_operations',
   SOCIAL_USER_INFO: 'zerowallet_social_user_info',
+  WEB3AUTH_USER_INFO: 'web3auth_user_info',
 } as const
 
 // API endpoints

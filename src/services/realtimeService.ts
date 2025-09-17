@@ -361,7 +361,7 @@ class RealtimeService {
       capabilities.push('browser_notifications')
     }
 
-    if (navigator.credentials && navigator.credentials.create) {
+    if (navigator.credentials && typeof navigator.credentials.create === 'function') {
       capabilities.push('webauthn')
     }
 

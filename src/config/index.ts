@@ -18,6 +18,12 @@ export const config = {
     rpcUrl: process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.ankr.com/eth_sepolia',
   },
 
+  // Web3Auth Configuration
+  web3Auth: {
+    clientId: process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID || '',
+    network: process.env.NEXT_PUBLIC_WEB3AUTH_NETWORK || 'sapphire_devnet',
+  },
+
   // Social Login Configuration
   social: {
     googleClientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',

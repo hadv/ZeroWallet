@@ -2,36 +2,36 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
 // Mock external dependencies first
 jest.mock('@zerodev/weighted-validator', () => ({
-  toWeightedValidator: jest.fn().mockResolvedValue({
+  createWeightedValidator: jest.fn(() => Promise.resolve({
     address: '0x1234567890123456789012345678901234567890'
-  })
+  }))
 }))
 
 jest.mock('@zerodev/kernel', () => ({
-  createKernelAccount: jest.fn().mockResolvedValue({
+  createKernelAccount: jest.fn(() => Promise.resolve({
     address: '0x1234567890123456789012345678901234567890',
-    encodeCallData: jest.fn().mockResolvedValue('0x'),
-    buildUserOperation: jest.fn().mockResolvedValue({})
-  }),
-  createKernelAccountClient: jest.fn().mockResolvedValue({
-    sendUserOperation: jest.fn().mockResolvedValue('0x123'),
-    waitForUserOperationReceipt: jest.fn().mockResolvedValue({
+    encodeCallData: jest.fn(() => Promise.resolve('0x')),
+    buildUserOperation: jest.fn(() => Promise.resolve({}))
+  })),
+  createKernelAccountClient: jest.fn(() => Promise.resolve({
+    sendUserOperation: jest.fn(() => Promise.resolve('0x123')),
+    waitForUserOperationReceipt: jest.fn(() => Promise.resolve({
       success: true,
       receipt: { transactionHash: '0x456' }
-    }),
-    estimateUserOperationGas: jest.fn().mockResolvedValue({
+    })),
+    estimateUserOperationGas: jest.fn(() => Promise.resolve({
       callGasLimit: '100000',
       verificationGasLimit: '50000',
       preVerificationGas: '25000'
-    })
-  })
+    }))
+  }))
 }))
 
 jest.mock('viem', () => ({
-  parseEther: jest.fn((value) => BigInt(value.replace('.', '') + '0'.repeat(18 - value.length + 1))),
-  createPublicClient: jest.fn().mockReturnValue({
-    getGasPrice: jest.fn().mockResolvedValue(BigInt('20000000000'))
-  }),
+  parseEther: jest.fn((value: string) => BigInt((value as string).replace('.', '') + '0'.repeat(18 - (value as string).length + 1))),
+  createPublicClient: jest.fn(() => ({
+    getGasPrice: jest.fn(() => Promise.resolve(BigInt('20000000000')))
+  })),
   http: jest.fn()
 }))
 
@@ -73,7 +73,7 @@ describe('Full Multi-Signature Workflow', () => {
     const mockSetSigningPolicy = jest.fn()
     const mockGetValidators = jest.fn().mockReturnValue(mockValidators)
     const mockGetValidatorById = jest.fn((id) => mockValidators.find(v => v.id === id))
-    const mockRequiresMultiSig = jest.fn((value) => parseFloat(value) > 0.1)
+    const mockRequiresMultiSig = jest.fn((value: string) => parseFloat(value) > 0.1)
     const mockGetThreshold = jest.fn().mockReturnValue(2)
 
     // Mock the multiValidatorService methods

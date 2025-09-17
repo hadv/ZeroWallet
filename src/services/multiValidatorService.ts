@@ -9,7 +9,8 @@ import {
   MultiSigTransaction
 } from '@/types'
 import { passkeyService } from './passkeyService'
-import { socialLoginService } from './socialLoginService'
+// Note: socialLoginService is deprecated, using web3AuthService instead
+// import { socialLoginService } from './socialLoginService'
 import { STORAGE_KEYS } from '@/constants'
 
 export class MultiValidatorService {

@@ -17,8 +17,9 @@ export interface SignProposalRequest {
 // POST /api/multisig/proposals/[id]/sign - Sign a proposal
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const authResult = await authMiddleware(request)
     if (!authResult.success) {
@@ -35,7 +36,7 @@ export async function POST(
       )
     }
 
-    const proposal = await proposalService.getProposal(params.id)
+    const proposal = await proposalService.getProposal(id)
     if (!proposal) {
       return NextResponse.json({ error: 'Proposal not found' }, { status: 404 })
     }
@@ -50,7 +51,7 @@ export async function POST(
 
     // Check if proposal has expired
     if (proposal.expiresAt && Date.now() > proposal.expiresAt) {
-      await proposalService.expireProposal(params.id)
+      await proposalService.expireProposal(id)
       return NextResponse.json(
         { error: 'Proposal has expired' },
         { status: 400 }
@@ -78,7 +79,7 @@ export async function POST(
 
     // Verify signature
     const isValidSignature = await signatureService.verifySignature({
-      proposalId: params.id,
+      proposalId: id,
       validatorId: body.validatorId,
       signature: body.signature,
       signerType: body.signerType,
@@ -97,12 +98,12 @@ export async function POST(
     }
 
     // Add signature to proposal
-    const updatedProposal = await proposalService.addSignature(params.id, {
+    const updatedProposal = await proposalService.addSignature(id, {
       validatorId: body.validatorId,
       signature: body.signature,
       signedAt: Date.now(),
       signerType: body.signerType,
-      signedBy: authResult.userId,
+      signedBy: authResult.userId!,
       metadata: body.metadata
     })
 
@@ -110,7 +111,7 @@ export async function POST(
     if (updatedProposal.collectedSignatures >= updatedProposal.requiredSignatures) {
       try {
         // Execute the transaction
-        const executionResult = await proposalService.executeProposal(params.id)
+        const executionResult = await proposalService.executeProposal(id)
         
         return NextResponse.json({
           success: true,
@@ -124,7 +125,7 @@ export async function POST(
         console.error('Error executing proposal:', executionError)
         
         // Mark proposal as failed but return the signature success
-        await proposalService.markProposalFailed(params.id, executionError)
+        await proposalService.markProposalFailed(id, executionError)
         
         return NextResponse.json({
           success: true,
@@ -138,7 +139,7 @@ export async function POST(
     }
 
     // Notify other signers about the new signature
-    await proposalService.notifySignatureAdded(params.id, body.validatorId)
+    await proposalService.notifySignatureAdded(id, body.validatorId)
 
     return NextResponse.json({
       success: true,

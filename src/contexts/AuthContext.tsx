@@ -1,12 +1,12 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react'
-import { AuthState, PasskeyCredential, SocialProvider, ValidatorInfo, AddSignerRequest } from '@/types'
+import { AuthState, PasskeyCredential, SocialProvider, ValidatorInfo, AddSignerRequest, Web3AuthUserInfo } from '@/types'
 import { passkeyService } from '@/services/passkeyService'
-import { socialLoginService } from '@/services/socialLoginService'
+import { web3AuthService } from '@/services/web3AuthService'
 import { multiValidatorService } from '@/services/multiValidatorService'
 import { useWallet } from './WalletContext'
-import { STORAGE_KEYS } from '@/constants'
+import { STORAGE_KEYS, SOCIAL_PROVIDERS } from '@/constants'
 
 // Auth context state
 interface AuthContextState extends AuthState {
@@ -16,7 +16,7 @@ interface AuthContextState extends AuthState {
     isPlatformAuthenticatorAvailable: boolean
   }
   socialProviders: SocialProvider[]
-  userInfo: any
+  userInfo: Web3AuthUserInfo | null
   validators: ValidatorInfo[]
   isMultiSig: boolean
 }
@@ -24,7 +24,7 @@ interface AuthContextState extends AuthState {
 // Auth actions
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_AUTHENTICATED'; payload: { username: string; authMethod: 'passkey' | 'social' | 'multi-sig'; userInfo?: any } }
+  | { type: 'SET_AUTHENTICATED'; payload: { username: string; authMethod: 'passkey' | 'social' | 'multi-sig'; userInfo?: Web3AuthUserInfo } }
   | { type: 'SET_UNAUTHENTICATED' }
   | { type: 'SET_ERROR'; payload: string }
   | { type: 'SET_AVAILABLE_USERNAMES'; payload: string[] }
@@ -131,7 +131,7 @@ interface AuthContextValue extends AuthContextState {
   registerWithPasskey: (username: string) => Promise<void>
   loginWithPasskey: (username: string) => Promise<void>
   loginWithEmail: (email: string) => Promise<void>
-  loginWithSocial: (provider: 'google' | 'github' | 'twitter' | 'discord') => Promise<void>
+  loginWithSocial: (provider?: 'google' | 'github' | 'twitter' | 'discord') => Promise<void>
   logout: () => void
   clearError: () => void
   deletePasskey: (username: string) => boolean
@@ -172,7 +172,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch({ type: 'SET_AVAILABLE_USERNAMES', payload: usernames })
 
       // Load social providers
-      const providers = socialLoginService.getAvailableProviders()
+      const providers = SOCIAL_PROVIDERS.filter(p => p.enabled)
       dispatch({ type: 'SET_SOCIAL_PROVIDERS', payload: providers })
 
       // Load validators from multi-validator service
@@ -290,8 +290,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     dispatch({ type: 'SET_LOADING', payload: true })
 
     try {
-      // Login with email using Magic
-      const { validator, userInfo } = await socialLoginService.loginWithEmail(email)
+      // Login with email using Web3Auth
+      const { validator, userInfo } = await web3AuthService.loginWithEmail(email)
 
       // Initialize multi-validator service with social login
       const primarySigner = await multiValidatorService.initializeWithSocialLogin(validator, userInfo)
@@ -306,7 +306,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Update auth state
       dispatch({
         type: 'SET_AUTHENTICATED',
-        payload: { username: userInfo.email, authMethod: 'social', userInfo },
+        payload: { username: userInfo.email || 'User', authMethod: 'social', userInfo },
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to login with email'
@@ -316,12 +316,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   // Login with social provider function
-  const loginWithSocial = async (provider: 'google' | 'github' | 'twitter' | 'discord') => {
+  const loginWithSocial = async (provider?: 'google' | 'github' | 'twitter' | 'discord') => {
     dispatch({ type: 'SET_LOADING', payload: true })
 
     try {
-      // Login with social provider using Magic
-      const { validator, userInfo } = await socialLoginService.loginWithSocial(provider)
+      // Login with social provider using Web3Auth
+      const { validator, userInfo } = await web3AuthService.loginWithSocial(provider)
 
       // Initialize multi-validator service with social login
       const primarySigner = await multiValidatorService.initializeWithSocialLogin(validator, userInfo)
@@ -336,10 +336,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Update auth state
       dispatch({
         type: 'SET_AUTHENTICATED',
-        payload: { username: userInfo.email || `${provider}_user`, authMethod: 'social', userInfo },
+        payload: { username: userInfo.email || userInfo.name || 'User', authMethod: 'social', userInfo },
       })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : `Failed to login with ${provider}`
+      const errorMessage = error instanceof Error ? error.message : `Failed to login with social provider`
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
       throw error
     }
@@ -348,9 +348,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Logout function
   const logout = async () => {
     try {
-      // If logged in with social, logout from Magic
+      // If logged in with social, logout from Web3Auth
       if (state.authMethod === 'social') {
-        await socialLoginService.logout()
+        await web3AuthService.logout()
       }
     } catch (error) {
       console.error('Error during social logout:', error)
@@ -414,7 +414,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           payload: {
             username: state.username || 'multi-sig-user',
             authMethod: 'multi-sig',
-            userInfo: state.userInfo
+            userInfo: state.userInfo || undefined
           },
         })
       }
@@ -447,7 +447,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             payload: {
               username: state.username || 'user',
               authMethod: 'social',
-              userInfo: state.userInfo
+              userInfo: state.userInfo || undefined
             },
           })
         }

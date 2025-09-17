@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0')
 
     const proposals = await proposalService.getProposalsForUser(
-      authResult.userId,
-      { status, limit, offset }
+      authResult.userId!,
+      { status: status || undefined, limit, offset }
     )
 
     return NextResponse.json({
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     // Create proposal
     const proposal = await proposalService.createProposal({
-      createdBy: authResult.userId,
+      createdBy: authResult.userId!,
       to: body.to,
       value: body.value,
       data: body.data,
