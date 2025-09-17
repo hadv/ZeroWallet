@@ -1,13 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import SecuritySettings from '@/components/SecuritySettings'
+import { SocialRecoverySettings } from '@/components/SocialRecoverySettings'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
 export default function SecurityPage() {
   const { isAuthenticated, isLoading } = useAuth()
+  const [activeTab, setActiveTab] = useState<'security' | 'recovery'>('security')
 
   if (isLoading) {
     return (
@@ -63,7 +65,37 @@ export default function SecurityPage() {
       {/* Main content */}
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SecuritySettings />
+          {/* Tab Navigation */}
+          <div className="mb-8">
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8">
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'security'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Multi-Signature Security
+                </button>
+                <button
+                  onClick={() => setActiveTab('recovery')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'recovery'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Social Recovery
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'security' && <SecuritySettings />}
+          {activeTab === 'recovery' && <SocialRecoverySettings />}
         </div>
       </div>
     </div>

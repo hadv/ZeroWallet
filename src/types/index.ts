@@ -293,4 +293,22 @@ export interface SecuritySettingsProps {
   onRemoveSigner: (request: RemoveSignerRequest) => Promise<void>
 }
 
+// Re-export social recovery types for convenience
+export type {
+  Guardian,
+  GuardianInvitation,
+  SocialRecoveryConfig,
+  RecoveryRequest,
+  RecoveryApproval,
+  RecoverySecurityEvent,
+  RecoveryNotification,
+  RecoveryState,
+  RecoveryAction,
+  SocialRecoveryService,
+  GuardianRelationship,
+  GuardianStatus,
+  RecoveryReason,
+  RecoveryStatus
+} from './socialRecovery'
+
 export default {}
