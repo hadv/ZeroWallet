@@ -2,13 +2,50 @@
 
 This guide covers deploying ZeroWallet to various platforms and environments.
 
+## ⚠️ **CRITICAL: Required Services Setup**
+
+**Before deployment, you MUST set up these mandatory services. The wallet will NOT function without them:**
+
+### 🔧 **ZeroDev Setup (MANDATORY)**
+ZeroDev provides the ERC-4337 infrastructure that powers ZeroWallet's smart contract functionality.
+
+1. **Create ZeroDev Account:**
+   - Visit [https://dashboard.zerodev.app/](https://dashboard.zerodev.app/)
+   - Sign up for a free account
+   - Create a new project
+
+2. **Configure for Sepolia Testnet:**
+   - Select "Sepolia Testnet" as your network
+   - Copy your Project ID
+   - Your URLs will be automatically generated
+
+3. **Get Required URLs:**
+   ```
+   Project ID: your_project_id_here
+   Bundler URL: https://rpc.zerodev.app/api/v2/bundler/your_project_id_here
+   Paymaster URL: https://rpc.zerodev.app/api/v2/paymaster/your_project_id_here
+   ```
+
+### 🔐 **Web3Auth Setup (MANDATORY)**
+Web3Auth provides the social login functionality.
+
+1. **Create Web3Auth Account:**
+   - Visit [https://dashboard.web3auth.io/](https://dashboard.web3auth.io/)
+   - Sign up for a free account
+   - Create a new project
+
+2. **Configure Project:**
+   - Select "Ethereum" as blockchain
+   - Add your domain(s) to whitelist
+   - Copy your Client ID
+
 ## 🚀 Quick Deploy to Vercel
 
 ### Prerequisites
 - GitHub account
 - Vercel account
-- ZeroDev project setup
-- Magic.link application setup
+- **ZeroDev project setup (MANDATORY)**
+- **Web3Auth project setup (MANDATORY)**
 
 ### Steps
 
@@ -28,44 +65,105 @@ This guide covers deploying ZeroWallet to various platforms and environments.
 
 3. **Environment Variables**
    Add these in Vercel dashboard under Settings > Environment Variables:
+
+   **🚨 MANDATORY Variables (Wallet will NOT work without these):**
    ```
-   NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_project_id
-   NEXT_PUBLIC_ZERODEV_BUNDLER_RPC=your_bundler_rpc_url
-   NEXT_PUBLIC_ZERODEV_PAYMASTER_RPC=your_paymaster_rpc_url
+   # ZeroDev Configuration (MANDATORY)
+   NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_project_id_here
+   NEXT_PUBLIC_BUNDLER_URL=https://rpc.zerodev.app/api/v2/bundler/your_project_id_here
+   NEXT_PUBLIC_PAYMASTER_URL=https://rpc.zerodev.app/api/v2/paymaster/your_project_id_here
+
+   # Web3Auth Configuration (MANDATORY)
+   NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=your_web3auth_client_id_here
+   ```
+
+   **📋 Network Configuration (Pre-configured for Sepolia):**
+   ```
+   # Network Configuration
    NEXT_PUBLIC_CHAIN_ID=11155111
-   NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/your_infura_key
-   NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY=your_magic_publishable_key
+   NEXT_PUBLIC_CHAIN_NAME=sepolia
+   NEXT_PUBLIC_RPC_URL=https://rpc.ankr.com/eth_sepolia
+   NEXT_PUBLIC_WEB3AUTH_NETWORK=sapphire_devnet
+   ```
+
+   **⚙️ Optional Configuration:**
+   ```
+   # App Configuration
    NEXT_PUBLIC_APP_NAME=ZeroWallet
+   NEXT_PUBLIC_APP_DESCRIPTION=A user-friendly Web3 wallet with social login and passkey support
    NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+
+   # Social Login (Optional)
+   NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+   NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id_here
    ```
 
 ## 🔧 Environment Configuration
 
-### Development Environment
+### Development Environment (Sepolia Testnet)
 ```env
-# .env.local
-NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_dev_project_id
-NEXT_PUBLIC_ZERODEV_BUNDLER_RPC=https://rpc.zerodev.app/api/v2/bundler/your_project_id
-NEXT_PUBLIC_ZERODEV_PAYMASTER_RPC=https://rpc.zerodev.app/api/v2/paymaster/your_project_id
+# .env.local - Copy from .env.example and fill in your values
+
+# ZeroDev Configuration (MANDATORY)
+NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_project_id_here
+NEXT_PUBLIC_BUNDLER_URL=https://rpc.zerodev.app/api/v2/bundler/your_project_id_here
+NEXT_PUBLIC_PAYMASTER_URL=https://rpc.zerodev.app/api/v2/paymaster/your_project_id_here
+
+# Passkey Server Configuration
+NEXT_PUBLIC_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3
+
+# Network Configuration (Sepolia Testnet)
 NEXT_PUBLIC_CHAIN_ID=11155111
-NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/your_infura_key
-NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY=pk_live_your_magic_key
+NEXT_PUBLIC_CHAIN_NAME=sepolia
+NEXT_PUBLIC_RPC_URL=https://rpc.ankr.com/eth_sepolia
+
+# Web3Auth Configuration (MANDATORY)
+NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=your_web3auth_client_id_here
+NEXT_PUBLIC_WEB3AUTH_NETWORK=sapphire_devnet
+
+# Social Login Configuration (Optional)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id_here
+
+# App Configuration
 NEXT_PUBLIC_APP_NAME=ZeroWallet
+NEXT_PUBLIC_APP_DESCRIPTION=A user-friendly Web3 wallet with social login and passkey support
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### Production Environment
+### Production Environment (Ethereum Mainnet)
 ```env
 # Production environment variables
-NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_prod_project_id
-NEXT_PUBLIC_ZERODEV_BUNDLER_RPC=https://rpc.zerodev.app/api/v2/bundler/your_prod_project_id
-NEXT_PUBLIC_ZERODEV_PAYMASTER_RPC=https://rpc.zerodev.app/api/v2/paymaster/your_prod_project_id
+
+# ZeroDev Configuration (MANDATORY) - Use separate production project
+NEXT_PUBLIC_ZERODEV_PROJECT_ID=your_prod_project_id_here
+NEXT_PUBLIC_BUNDLER_URL=https://rpc.zerodev.app/api/v2/bundler/your_prod_project_id_here
+NEXT_PUBLIC_PAYMASTER_URL=https://rpc.zerodev.app/api/v2/paymaster/your_prod_project_id_here
+
+# Passkey Server Configuration
+NEXT_PUBLIC_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3
+
+# Network Configuration (Ethereum Mainnet)
 NEXT_PUBLIC_CHAIN_ID=1
-NEXT_PUBLIC_RPC_URL=https://mainnet.infura.io/v3/your_infura_key
-NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY=pk_live_your_production_magic_key
+NEXT_PUBLIC_CHAIN_NAME=mainnet
+NEXT_PUBLIC_RPC_URL=https://rpc.ankr.com/eth
+
+# Web3Auth Configuration (MANDATORY) - Use production settings
+NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=your_production_web3auth_client_id_here
+NEXT_PUBLIC_WEB3AUTH_NETWORK=sapphire_mainnet
+
+# App Configuration
 NEXT_PUBLIC_APP_NAME=ZeroWallet
+NEXT_PUBLIC_APP_DESCRIPTION=A user-friendly Web3 wallet with social login and passkey support
 NEXT_PUBLIC_APP_URL=https://your-production-domain.com
 ```
+
+### ⚠️ **Important Notes:**
+- **Never commit** `.env.local` to version control
+- Use **separate ZeroDev projects** for development and production
+- Use **separate Web3Auth projects** for development and production
+- **Test thoroughly** on Sepolia before deploying to mainnet
+- The **bundler and paymaster URLs are absolutely mandatory** - the wallet will not function without them
 
 ## 🏗️ Build Configuration
 
@@ -289,22 +387,47 @@ jobs:
 
 ## 🚨 Troubleshooting
 
+### Critical Environment Variable Issues
+
+1. **"Failed to create account client" Error**
+   - **Cause**: Missing or invalid `NEXT_PUBLIC_BUNDLER_URL` or `NEXT_PUBLIC_PAYMASTER_URL`
+   - **Solution**:
+     - Verify your ZeroDev project ID is correct
+     - Ensure URLs follow exact format: `https://rpc.zerodev.app/api/v2/bundler/YOUR_PROJECT_ID`
+     - Check ZeroDev dashboard for correct project ID
+
+2. **"Kernel client not initialized" Error**
+   - **Cause**: ZeroDev configuration is incomplete
+   - **Solution**:
+     - Verify all three ZeroDev variables are set: `NEXT_PUBLIC_ZERODEV_PROJECT_ID`, `NEXT_PUBLIC_BUNDLER_URL`, `NEXT_PUBLIC_PAYMASTER_URL`
+     - Check browser console for specific error messages
+
+3. **"Web3Auth Client ID not found" Warning**
+   - **Cause**: Missing `NEXT_PUBLIC_WEB3AUTH_CLIENT_ID`
+   - **Solution**:
+     - Create Web3Auth project at https://dashboard.web3auth.io/
+     - Copy Client ID to environment variables
+     - Ensure domain is whitelisted in Web3Auth dashboard
+
 ### Common Deployment Issues
 
-1. **Build Failures**
+4. **Build Failures**
    - Check TypeScript errors
    - Verify all dependencies are installed
-   - Ensure environment variables are set
+   - **Ensure all mandatory environment variables are set**
+   - Run `npm run build` locally to test
 
-2. **Runtime Errors**
+5. **Runtime Errors**
    - Check browser console for errors
    - Verify API endpoints are accessible
    - Confirm WebAuthn support in target browsers
+   - **Verify environment variables are loaded correctly**
 
-3. **Authentication Issues**
-   - Verify Magic.link domain configuration
-   - Check ZeroDev project settings
-   - Ensure HTTPS is enabled
+6. **Wallet Connection Issues**
+   - **First check**: Are all mandatory environment variables set?
+   - Verify ZeroDev project is configured for correct network (Sepolia/Mainnet)
+   - Check Web3Auth domain configuration
+   - Ensure HTTPS is enabled (required for WebAuthn)
 
 ### Performance Optimization
 - Enable **static generation** where possible
@@ -314,15 +437,35 @@ jobs:
 
 ## 📋 Pre-Deployment Checklist
 
+### 🚨 **MANDATORY Requirements (Wallet will NOT work without these)**
+- [ ] **ZeroDev project created and configured**
+  - [ ] `NEXT_PUBLIC_ZERODEV_PROJECT_ID` set
+  - [ ] `NEXT_PUBLIC_BUNDLER_URL` set
+  - [ ] `NEXT_PUBLIC_PAYMASTER_URL` set
+- [ ] **Web3Auth project created and configured**
+  - [ ] `NEXT_PUBLIC_WEB3AUTH_CLIENT_ID` set
+  - [ ] Domain whitelisted in Web3Auth dashboard
+- [ ] **Test wallet functionality locally first**
+  - [ ] Can create wallet
+  - [ ] Can send transactions
+  - [ ] Multi-sig features work (if using)
+
+### 📋 **Standard Deployment Requirements**
 - [ ] All environment variables configured
-- [ ] HTTPS enabled
-- [ ] Domain configured in Magic.link dashboard
-- [ ] ZeroDev project configured for production
+- [ ] HTTPS enabled (required for WebAuthn)
 - [ ] Error tracking setup
-- [ ] Analytics configured
+- [ ] Analytics configured (optional)
 - [ ] Security headers implemented
 - [ ] Performance optimizations applied
 - [ ] Backup and recovery plan in place
+
+### 🧪 **Testing Checklist**
+- [ ] Test on Sepolia testnet first
+- [ ] Verify social login works
+- [ ] Verify passkey registration/login works
+- [ ] Test transaction sending
+- [ ] Test multi-signature flows (if applicable)
+- [ ] Test on target browsers (Chrome, Safari, Firefox)
 
 ## 🆘 Support
 
