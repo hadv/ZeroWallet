@@ -4,12 +4,19 @@ import {
   WebAuthnMode,
   PasskeyValidatorContractVersion,
 } from '@zerodev/passkey-validator'
-import { config } from '@/config'
+import { createPublicClient, http } from 'viem'
+import { getEntryPoint, KERNEL_V3_1 } from '@zerodev/sdk/constants'
+import { config, getCurrentChain } from '@/config'
 import { PasskeyCredential } from '@/types'
 import { STORAGE_KEYS } from '@/constants'
 
 export interface SignMessageParams {
   message: string
+  credentialId: string
+}
+
+export interface SignUserOperationParams {
+  userOperation: any
   credentialId: string
 }
 
@@ -22,9 +29,16 @@ export interface VerifySignatureParams {
 
 export class PasskeyService {
   private passkeyServerUrl: string
+  private publicClient: any
+  private chain = getCurrentChain()
+  private entryPoint = getEntryPoint('0.7')
 
   constructor() {
     this.passkeyServerUrl = config.zerodev.passkeyServerUrl
+    this.publicClient = createPublicClient({
+      chain: this.chain,
+      transport: http(config.network.rpcUrl),
+    })
   }
 
   /**
@@ -39,17 +53,18 @@ export class PasskeyService {
         mode: WebAuthnMode.Register,
       })
 
-      // Create passkey validator
-      // Note: toPasskeyValidator API has changed, using simplified approach for now
-      const passkeyValidator = {
-        address: '0x' + Buffer.from('passkey_validator_placeholder').toString('hex').slice(0, 40),
-        // TODO: Implement proper passkey validator creation with updated API
-      } as any
+      // Create passkey validator using the correct API
+      const passkeyValidator = await toPasskeyValidator(this.publicClient, {
+        webAuthnKey,
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+        validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2,
+      })
 
       // Create credential object
       const credential: PasskeyCredential = {
         id: webAuthnKey.authenticatorId,
-        publicKey: webAuthnKey.pubY.toString(), // Note: API changed from pubKey to pubY, convert to string
+        publicKey: webAuthnKey.pubY.toString(),
         username,
         createdAt: Date.now(),
       }
@@ -71,7 +86,7 @@ export class PasskeyService {
     try {
       // Get stored credential
       const credential = this.getStoredCredential(username)
-      
+
       if (!credential) {
         throw new Error('No passkey found for this username. Please register first.')
       }
@@ -83,12 +98,13 @@ export class PasskeyService {
         mode: WebAuthnMode.Login,
       })
 
-      // Create passkey validator
-      // Note: toPasskeyValidator API has changed, using simplified approach for now
-      const passkeyValidator = {
-        address: '0x' + Buffer.from('passkey_validator_placeholder').toString('hex').slice(0, 40),
-        // TODO: Implement proper passkey validator creation with updated API
-      } as any
+      // Create passkey validator using the correct API
+      const passkeyValidator = await toPasskeyValidator(this.publicClient, {
+        webAuthnKey,
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+        validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2,
+      })
 
       return { validator: passkeyValidator, credential }
     } catch (error) {
@@ -283,33 +299,91 @@ export class PasskeyService {
         mode: WebAuthnMode.Login,
       })
 
-      // Create challenge from message
-      const challenge = new TextEncoder().encode(message)
+      // Create passkey validator for signing
+      const passkeyValidator = await toPasskeyValidator(this.publicClient, {
+        webAuthnKey,
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+        validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2,
+      })
 
-      // Get assertion using WebAuthn
-      const assertion = await navigator.credentials.get({
-        publicKey: {
-          challenge,
-          allowCredentials: [{
-            type: 'public-key',
-            id: new TextEncoder().encode(credentialId)
-          }],
-          userVerification: 'required'
-        }
-      }) as PublicKeyCredential
+      // Sign the message using the validator's signMessage method
+      const signature = await passkeyValidator.signMessage({ message })
 
-      if (!assertion) {
-        throw new Error('Failed to get assertion')
-      }
-
-      // Extract signature from assertion
-      const response = assertion.response as AuthenticatorAssertionResponse
-      const signature = new Uint8Array(response.signature)
-
-      // Convert to base64 string
-      return btoa(String.fromCharCode(...signature))
+      return signature
     } catch (error) {
       console.error('Error signing message with passkey:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Sign a user operation using a passkey
+   */
+  async signUserOperation(params: SignUserOperationParams): Promise<string> {
+    try {
+      const { userOperation, credentialId } = params
+
+      // Get the stored credential
+      const credential = this.getStoredCredential(credentialId)
+      if (!credential) {
+        throw new Error('Credential not found')
+      }
+
+      // Create WebAuthn key for signing
+      const webAuthnKey = await toWebAuthnKey({
+        passkeyName: credential.username,
+        passkeyServerUrl: this.passkeyServerUrl,
+        mode: WebAuthnMode.Login,
+      })
+
+      // Create passkey validator for signing
+      const passkeyValidator = await toPasskeyValidator(this.publicClient, {
+        webAuthnKey,
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+        validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2,
+      })
+
+      // Sign the user operation using the validator's signUserOperation method
+      const signature = await passkeyValidator.signUserOperation(userOperation)
+
+      return signature
+    } catch (error) {
+      console.error('Error signing user operation with passkey:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get a passkey validator for a given credential ID
+   */
+  async getPasskeyValidator(credentialId: string): Promise<any> {
+    try {
+      // Get the stored credential
+      const credential = this.getStoredCredential(credentialId)
+      if (!credential) {
+        throw new Error('Credential not found')
+      }
+
+      // Create WebAuthn key
+      const webAuthnKey = await toWebAuthnKey({
+        passkeyName: credential.username,
+        passkeyServerUrl: this.passkeyServerUrl,
+        mode: WebAuthnMode.Login,
+      })
+
+      // Create passkey validator
+      const passkeyValidator = await toPasskeyValidator(this.publicClient, {
+        webAuthnKey,
+        entryPoint: this.entryPoint,
+        kernelVersion: KERNEL_V3_1,
+        validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2,
+      })
+
+      return passkeyValidator
+    } catch (error) {
+      console.error('Error getting passkey validator:', error)
       throw error
     }
   }
