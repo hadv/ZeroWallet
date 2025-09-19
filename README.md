@@ -5,7 +5,7 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 ## 🌟 Features
 
 ### Authentication Methods
-- **Social Login First**: Start with easy email/social authentication using Magic.link
+- **Social Login First**: Start with easy email/social authentication using Web3Auth
 - **Progressive Security**: Add passkeys for enhanced multi-signature security
 - **Passkey Authentication**: Secure biometric authentication using WebAuthn (Face ID, Touch ID, Windows Hello)
 - **No Seed Phrases**: Eliminate the complexity of traditional wallet management
@@ -81,8 +81,8 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
    NEXT_PUBLIC_CHAIN_ID=11155111
    NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/your_infura_key
 
-   # Magic.link Configuration
-   NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY=your_magic_publishable_key
+   # Web3Auth Configuration
+   NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=your_web3auth_client_id
 
    # Application Settings
    NEXT_PUBLIC_APP_NAME=ZeroWallet
@@ -105,10 +105,10 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 3. Copy your Project ID, Bundler RPC, and Paymaster RPC URLs
 4. Add them to your `.env.local` file
 
-### Magic.link Setup
-1. Visit [Magic.link Dashboard](https://dashboard.magic.link/)
-2. Create a new application
-3. Copy your publishable key
+### Web3Auth Setup
+1. Visit [Web3Auth Dashboard](https://dashboard.web3auth.io/)
+2. Create a new project
+3. Copy your Client ID
 4. Add it to your `.env.local` file
 
 ## 🏗️ Architecture
@@ -118,7 +118,7 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 #### Authentication Layer
 - **AuthContext**: Manages authentication state and multi-signer operations
 - **PasskeyService**: Handles WebAuthn passkey operations
-- **SocialLoginService**: Manages Magic.link social authentication
+- **SocialLoginService**: Manages Web3Auth social authentication
 - **MultiValidatorService**: Coordinates multiple authentication methods
 
 #### Wallet Layer
@@ -141,7 +141,7 @@ A modern, secure Ethereum wallet built with ZeroDev's smart account infrastructu
 - **Frontend**: Next.js 15, React 18, TypeScript
 - **Styling**: Tailwind CSS, Heroicons
 - **Blockchain**: Viem, ZeroDev SDK
-- **Authentication**: WebAuthn, Magic.link
+- **Authentication**: WebAuthn, Web3Auth
 - **Smart Accounts**: ERC-4337, Kernel accounts
 - **Multi-Signature**: ZeroDev Weighted Validator, Custom Multi-Validator Service
 
@@ -195,7 +195,7 @@ npm start
 ### Environment Variables
 Ensure all production environment variables are set:
 - Use production RPC URLs
-- Configure production Magic.link keys
+- Configure production Web3Auth keys
 - Set appropriate CORS origins
 
 ### Deployment Platforms
@@ -224,7 +224,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Getting Help
 - Check the [ZeroDev Documentation](https://docs.zerodev.app/)
-- Review [Magic.link Documentation](https://magic.link/docs)
+- Review [Web3Auth Documentation](https://web3auth.io/docs/)
 - Open an issue in this repository
 
 ## 🔮 Roadmap
@@ -238,4 +238,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-Built with ❤️ using [ZeroDev](https://zerodev.app/) and [Magic.link](https://magic.link/)
+Built with ❤️ using [ZeroDev](https://zerodev.app/) and [Web3Auth](https://web3auth.io/)
