@@ -212,6 +212,32 @@ class SignatureService {
   }
 
   /**
+   * Generate a passkey signature for a user operation
+   */
+  async generatePasskeyUserOperationSignature(
+    validatorId: string,
+    userOperation: any
+  ): Promise<string> {
+    try {
+      const validatorInfo = await this.getValidatorInfo(validatorId, 'passkey')
+      if (!validatorInfo) {
+        throw new Error('Passkey validator not found')
+      }
+
+      // Use the passkey service to sign the user operation
+      const signature = await passkeyService.signUserOperation({
+        userOperation,
+        credentialId: validatorInfo.credentialId
+      })
+
+      return signature
+    } catch (error) {
+      console.error('Error generating passkey user operation signature:', error)
+      throw error
+    }
+  }
+
+  /**
    * Generate a social login signature
    */
   private async generateSocialSignature(validatorId: string, message: string): Promise<string> {

@@ -3,39 +3,76 @@
 import React, { useState } from 'react'
 import { MultiSigTransactionModalProps, ValidatorInfo } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
-import { 
-  XMarkIcon, 
-  ShieldCheckIcon, 
+import PasskeySigningModal from './PasskeySigningModal'
+import {
+  XMarkIcon,
+  ShieldCheckIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   UserIcon,
-  KeyIcon 
+  KeyIcon
 } from '@heroicons/react/24/outline'
 
-export function MultiSigTransactionModal({ 
-  isOpen, 
-  onClose, 
-  transaction, 
-  onSign, 
-  availableSigners 
+export function MultiSigTransactionModal({
+  isOpen,
+  onClose,
+  transaction,
+  onSign,
+  availableSigners
 }: MultiSigTransactionModalProps) {
   const { validators } = useAuth()
   const [isSigningWith, setIsSigningWith] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showPasskeyModal, setShowPasskeyModal] = useState(false)
+  const [selectedValidator, setSelectedValidator] = useState<ValidatorInfo | null>(null)
 
   const handleSign = async (validatorId: string) => {
-    setError(null)
-    setIsSigningWith(validatorId)
+    const validator = validators.find(v => v.id === validatorId)
+    if (!validator) {
+      setError('Validator not found')
+      return
+    }
 
+    setError(null)
+    setSelectedValidator(validator)
+
+    if (validator.type === 'passkey') {
+      // Show passkey signing modal for passkey validators
+      setShowPasskeyModal(true)
+    } else {
+      // Handle social login signing directly
+      setIsSigningWith(validatorId)
+      try {
+        await onSign(validatorId)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to sign transaction'
+        setError(errorMessage)
+      } finally {
+        setIsSigningWith(null)
+      }
+    }
+  }
+
+  const handlePasskeySign = async () => {
+    if (!selectedValidator) return
+
+    setIsSigningWith(selectedValidator.id)
     try {
-      await onSign(validatorId)
+      await onSign(selectedValidator.id)
+      setShowPasskeyModal(false)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign transaction'
       setError(errorMessage)
+      throw err // Re-throw to let PasskeySigningModal handle the error state
     } finally {
       setIsSigningWith(null)
     }
+  }
+
+  const handlePasskeyModalClose = () => {
+    setShowPasskeyModal(false)
+    setSelectedValidator(null)
   }
 
   const formatDate = (timestamp: number) => {
@@ -74,6 +111,7 @@ export function MultiSigTransactionModal({
   if (!isOpen) return null
 
   return (
+    <>
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
@@ -261,6 +299,17 @@ export function MultiSigTransactionModal({
         </div>
       </div>
     </div>
+
+    {/* Passkey Signing Modal */}
+    <PasskeySigningModal
+      isOpen={showPasskeyModal}
+      onClose={handlePasskeyModalClose}
+      onSign={handlePasskeySign}
+      title="Sign Multi-Sig Transaction"
+      description="Please use your passkey to sign this multi-signature transaction"
+      signerName={selectedValidator?.name}
+    />
+  </>
   )
 }
 
